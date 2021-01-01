@@ -62,7 +62,7 @@ class DalyBms:
 		data = self.read(0x96)
 
 		# Cell equilibrium state
-		self.send(0x97);
+		self.send(0x97)
 		data = self.read(0x97)
 		bal_status_1_8 = self.oneByte(0)
 		bal_status_9_16 = self.oneByte(1)
@@ -71,27 +71,26 @@ class DalyBms:
 		self.send(0x98)
 		data = self.read(0x98)
 
-
-	def print(self):
-		print ("voltage: ", voltage)
-		print("current: ", current)
-		print("soc: ", soc)
-		print("max cell voltage: ",bat_maxv)
-		print("max cell no: ",bat_maxc)
-		print("min cell voltage: ", bat_minv)
-		print("min cell no: ", bat_minc)
-		print("Battery Temp", bat_temp)
-		print("Cell 1 Vontage", volt_cell1)
+	def infoprint(self):
+		print ("voltage: ", self.voltage)
+		print("current: ", self.current)
+		print("soc: ", self.soc)
+		print("max cell voltage: ", self.bat_maxv)
+		print("max cell no: ", self.bat_maxc)
+		print("min cell voltage: ", self.bat_minv)
+		print("min cell no: ", self.bat_minc)
+		print("Battery Temp", self.bat_temp)
+		print("Cell 1 Voltage", self.volt_cell1)
 
 	def sendCheckSum(self, command):
 		checksum = 0xa5 + 0x40 + command + 0x08
 		# print("WChecksum: ",hex(checksum)) #checksum mod 256 to get lower 2 bytes
 		# print(hex(256))
 		# print (hex(checksum  % 0x100))
-		return checksum  % 0x100
+		return checksum % 0x100
 
 	def send(self, command):
-		hexs = "a5 40 {:02X} 08 00 00 00 00 00 00 00 00 {:02X}".format(command, self.sendCheckSum())
+		hexs = "a5 40 {:02X} 08 00 00 00 00 00 00 00 00 {:02X}".format(command, self.sendCheckSum(command))
 		# print("Write: " ,hexs)
 		self.ser.write(bytearray.fromhex(hexs))
 
@@ -129,5 +128,5 @@ if __name__ == '__main__':
 	ser = serial.rs485.RS485(port='/dev/ttyUSB0', baudrate=9600, timeout=5)
 	ser.rs485_mode = serial.rs485.RS485Settings()
 	bms = DalyBms(ser)
-	bms.update
-	bms.print
+	bms.update()
+	bms.infoprint()
