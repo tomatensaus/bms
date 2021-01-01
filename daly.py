@@ -125,8 +125,12 @@ class DalyBms:
 
 if __name__ == '__main__':
 	import serial.rs485
-	ser = serial.rs485.RS485(port='/dev/ttyUSB0', baudrate=9600, timeout=5)
-	ser.rs485_mode = serial.rs485.RS485Settings()
-	bms = DalyBms(ser)
-	bms.update()
-	bms.infoprint()
+	import time
+
+	while True:
+		ser = serial.rs485.RS485(port='/dev/ttyUSB0', baudrate=9600, timeout=5)
+		ser.rs485_mode = serial.rs485.RS485Settings()
+		bms = DalyBms(ser)
+		bms.update()
+		bms.infoprint()
+		time.sleep(15)
