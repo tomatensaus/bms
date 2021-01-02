@@ -41,6 +41,11 @@ class DalyBms:
 		self.send(0x95)
 		data = self.read(0x95)
 		self.volt_cell1 = self.twoBytes(data, 0)
+
+		self.send(0x95)
+		data = self.readForCellVoltages(0x95)
+		self.volt_cell1 = self.twoBytes(data, 0)
+
 		# self.volt_cell2 =
 		# self.volt_cell3
 		# self.volt_cell4
@@ -102,6 +107,14 @@ class DalyBms:
 		else:
 			raise Exception('Read Checksum failed')
 
+	def readForCellVoltages(self, command):
+		ser_bytes = bytearray(self.ser.read(13))
+		print("Read: ", " ".join("{:02x}".format(thisByte) for thisByte in ser_bytes))
+		if self.checkReadCheckSum(command, ser_bytes):
+			return ser_bytes
+		else:
+			raise Exception('Read Checksum failed')
+
 	def checkReadCheckSum(self, command, ser_bytes):
 		checksum = sum(ser_bytes[0:-1])
 		#print("RCheckSum: ",hex(checksum))
@@ -123,6 +136,38 @@ class DalyBms:
 		#print(value)
 		return value
 
+	def chargeDerate(self):
+		trg_charge_V = TRG_CHARGE_V  # FROM INVERTER (mV)
+		trg_charge_I = TRG_CHARGE_I  # FROM INVERTER (0.01A)
+
+		self.bat_mode = 0
+		self.bat_chg_v = 55.5
+		self.bat_chg_i = 0.0
+		# bat_mode_ms: time = 0 # milliseconds
+		# bat_dis_i = BAT_DIS_I * 100U
+		# bat_dis_v = BAT_DIS_V
+		# derate_error_count: int = 0
+
+		#Tests if battery is in a good state to accept charge
+		while self.bat_mode == 0:
+			if self.bat_maxv > 3600 and self.bat_temp < 60:  # Ensure bat_temp are decoded correctly
+				trg_charge_I = 0
+
+			time.sleep(60)
+			if self.bat_maxv < 3300:
+				trg_charge_V = 56.0
+				trg_charge_I = 60.0
+			elif self.bat_maxv > 3300 :
+				trg_charge_V = 55.0
+				trg_charge_I = 100 - self.soc
+
+#	def derateFLoatTest(self):
+#		if self.voltage < BAT_FLOAT_V and # BAT_FLOAT_V from inverter
+#			self.bat_maxv < CELL_FLOAT_MAX and # CELL_FLOAT_MAX from inverter
+#			self.bat_minv < CELL_FLOAT_MIN and # CELL_FLOAT_MIN from inverter
+
+
+
 if __name__ == '__main__':
 	import serial.rs485
 	import time
@@ -134,3 +179,4 @@ if __name__ == '__main__':
 		bms.update()
 		bms.infoprint()
 		time.sleep(15)
+
