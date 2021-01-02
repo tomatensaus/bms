@@ -14,7 +14,7 @@ class DalyBms:
 		data = self.read(0x90) 
 		self.voltage = self.twoBytes(data,0)/10.0 
 		self.current = ((self.twoBytes(data,4) - 30000) / 10.0) 
-		self.soc = (100 - (self.twoBytes(data,6)/10.0)) 
+		self.soc = self.twoBytes(data,6)/10.0
 
 		# Max / Min Cell voltages
 		self.send(0x91)
@@ -25,8 +25,15 @@ class DalyBms:
 		self.bat_minc = self.oneByte(data, 5)
 
 		# Individual cell temperatures
-		self.send(0x92);
+		self.send(0x92)
 		data = self.read(0x92)
+		self.bat_temp = self.oneByte(data,0) - 40
+		# self.bat_max_cell = self.oneByte(data, 1)
+		# self.bat_min_cell = self.oneByte(data, 3)
+		print("Bat Max Temp: ", self.bat_max_temp)
+		# print("Bat Cell Max Temp: ", self.bat_max_cell)
+		#print("Bat Min Temp: ", self.bat_min_temp)
+		# print("Bat Cell Min Temp: ", self.bat_min_cell)
 
 		# Charge / Discharge Mos status
 		self.send(0x93)
@@ -35,22 +42,32 @@ class DalyBms:
 		# Status information, Temperature, charger status, load status
 		self.send(0x94)
 		data = self.read(0x94)
-		self.bat_temp = self.twoBytes(data, 1)
+		print("94b0", self.oneByte(data, 0))
+		# self.bat_temp = self.oneByte(data, 1)
+		print("94b1",self.bat_temp)
+		print("94b2", self.oneByte(data, 2))
+		print("94b3", self.oneByte(data, 3))
 
 		# Individual Cell voltages
+		self.cellVoltage = []
 		self.send(0x95)
-		data = self.read(0x95)
-		self.volt_cell1 = self.twoBytes(data, 0)
+		for i in range(6):
+			data = self.readForCellVoltages(0x95)
+			frame  = self.oneByte(data,0)
+			print(i," Frame: ", hex(frame))
+			self.cellVoltage.append(self.twoBytes(data, 1))
+			self.cellVoltage.append(self.twoBytes(data, 3))
+			self.cellVoltage.append(self.twoBytes(data, 5))
 
-		self.send(0x95)
-		data = self.readForCellVoltages(0x95)
-		self.volt_cell1 = self.twoBytes(data, 0)
-
-		# self.volt_cell2 =
-		# self.volt_cell3
-		# self.volt_cell4
-		# self.volt_cell5
-		# self.volt_cell6
+		# self.volt_cell1 = self.twoBytes(data, 1)
+		# self.volt_cell2 =  self.twoBytes(data, 3)
+		# self.volt_cell3 = self.twoBytes(data, 5)
+		# data = self.readForCellVoltages(0x95)
+		# frame = self.oneByte(data, 0)
+		# print("Frame: ", hex(frame))
+		# self.volt_cell4 = self.twoBytes(data, 1)
+		# self.volt_cell5 =  self.twoBytes(data, 3)
+		# self.volt_cell6 = self.twoBytes(data, 5)
 		# self.volt_cell7
 		# self.volt_cell8
 		# self.volt_cell9
@@ -63,18 +80,18 @@ class DalyBms:
 		# self.volt_cell16
 
 		# Individual Cell Temp
-		self.send(0x96)
-		data = self.read(0x96)
+		#self.send(0x96)
+		#data = self.read(0x96)
 
 		# Cell equilibrium state
-		self.send(0x97)
-		data = self.read(0x97)
-		bal_status_1_8 = self.oneByte(0)
-		bal_status_9_16 = self.oneByte(1)
+		#self.send(0x97)
+		#data = self.read(0x97)
+		#bal_status_1_8 = self.oneByte(0)
+		#bal_status_9_16 = self.oneByte(1)
 
 		# BMS Errors
-		self.send(0x98)
-		data = self.read(0x98)
+		#self.send(0x98)
+		#data = self.read(0x98)
 
 	def infoprint(self):
 		print ("voltage: ", self.voltage)
@@ -85,7 +102,16 @@ class DalyBms:
 		print("min cell voltage: ", self.bat_minv)
 		print("min cell no: ", self.bat_minc)
 		print("Battery Temp", self.bat_temp)
-		print("Cell 1 Voltage", self.volt_cell1)
+		for i in range(len(self.cellVoltage)):
+			print("Cell % 2d Voltage % 2f" %(i+1, self.cellVoltage[i]/1000.0))
+		# print("Cell 2 Voltage", self.cellVoltage[1])
+		# print("Cell 3 Voltage", self.cellVoltage[2])
+		# print("Cell 4 Voltage", self.cellVoltage[3])
+		# print("Cell 5 Voltage", self.cellVoltage[4])
+		# print("Cell 6 Voltage", self.cellVoltage[5])
+		# print("Cell 7 Voltage", self.cellVoltage[6])
+		# print("Cell 8 Voltage", self.cellVoltage[7])
+		# print("Cell 9 Voltage", self.cellVoltage[8])
 
 	def sendCheckSum(self, command):
 		checksum = 0xa5 + 0x40 + command + 0x08
@@ -150,7 +176,7 @@ class DalyBms:
 
 		#Tests if battery is in a good state to accept charge
 		while self.bat_mode == 0:
-			if self.bat_maxv > 3600 and self.bat_temp < 60:  # Ensure bat_temp are decoded correctly
+			if self.bat_maxv > 3600 or self.bat_temp > 60:  # Ensure bat_temp are decoded correctly
 				trg_charge_I = 0
 
 			time.sleep(60)
@@ -172,11 +198,11 @@ if __name__ == '__main__':
 	import serial.rs485
 	import time
 
+	ser = serial.rs485.RS485(port='/dev/ttyUSB0', baudrate=9600, timeout=5)
+	ser.rs485_mode = serial.rs485.RS485Settings()
+	bms = DalyBms(ser)
 	while True:
-		ser = serial.rs485.RS485(port='/dev/ttyUSB0', baudrate=9600, timeout=5)
-		ser.rs485_mode = serial.rs485.RS485Settings()
-		bms = DalyBms(ser)
 		bms.update()
-		bms.infoprint()
+		# bms.infoprint()
 		time.sleep(15)
 
