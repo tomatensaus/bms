@@ -1,14 +1,30 @@
-import serial
-import pymodbus
-
 
 class DeyeInverter:
 
-    def __init__():
-        pass
-
     def __init__(self, serialConnection):
         self.ser = serialConnection
+
+    def sendCheckSum(self, command):
+        checksum = 0xa5 + 0x40 + command + 0x08
+        # print("WChecksum: ",hex(checksum)) #checksum mod 256 to get lower 2 bytes
+        # print(hex(256))
+        # print (hex(checksum  % 0x100))
+        return checksum % 0x100
+
+    def send(self, command):
+        hexs = "a5 40 {:02X} 08 00 00 00 00 00 00 00 00 {:02X}".format(command, self.sendCheckSum(command))
+        # print("Write: " ,hexs)
+        self.ser.write(bytearray.fromhex(hexs))
+
+if __name__ == '__main__':
+    import serial.rs485
+
+    ser = serial.rs485.RS485(port='/dev/ttyAMA0', baudrate=9600, timeout=5)
+    ser.rs485_mode = serial.rs485.RS485Settings
+    inverter = DeyeInverter(ser)
+    DeyeInverter.send(inverter, 316)
+
+
 
 #   Adress  Discription     R/W     Ranges  unit    remarks
 #   200     Control mode    R/W                     0x0001 Lithium Battery
@@ -27,5 +43,5 @@ class DeyeInverter:
 
 
 
-ser = serial.Serial(port='/dev/ttyACM0', baudrate=9600, timeout=5)
+
 
