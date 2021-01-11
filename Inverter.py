@@ -1,30 +1,64 @@
+import time
+import can
+import daly
+import numpy as np
+import serial
 
-class DeyeInverter:
+data = []
+i = 0
+w = 0
 
-    def __init__(self, serialConnection):
-        self.ser = serialConnection
+def canSetWord(i,w):
+    w=np.int16(w)
+    data.insert(i,0)
+    data.insert(i+1, w)
 
-    def sendCheckSum(self, command):
-        checksum = 0xa5 + 0x40 + command + 0x08
-        # print("WChecksum: ",hex(checksum)) #checksum mod 256 to get lower 2 bytes
-        # print(hex(256))
-        # print (hex(checksum  % 0x100))
-        return checksum % 0x100
+def warnings():
+        canID = 0x359
+        data = [0,0,0,0,0,0x50,0x4E]
+        msg = can.Message(arbitration_id=canID, data=data, is_extended_id=False)
+        print(msg)
 
-    def send(self, command):
-        hexs = "a5 40 {:02X} 08 00 00 00 00 00 00 00 00 {:02X}".format(command, self.sendCheckSum(command))
-        # print("Write: " ,hexs)
-        self.ser.write(bytearray.fromhex(hexs))
+def chargesettngs():
+        canID = 0x351
+        canSetWord(0, 55) # Charge Voltage
+        canSetWord(0, 60) # Target Charge Current from derate check
+        canSetWord(0, 80)
+        msg = can.Message(arbitration_id=canID, data=data, is_extended_id=False)
+        print(msg)
 
-if __name__ == '__main__':
-    import serial.rs485
+def batteryState():
+        canID = 0x355
+        canSetWord(0, 55) # SOC
+        canSetWord(2, 95) # SOH
+        msg = can.Message(arbitration_id=canID, data=data, is_extended_id=False)
+        print (msg)
 
-    ser = serial.rs485.RS485(port='/dev/ttyAMA0', baudrate=9600, timeout=5)
-    ser.rs485_mode = serial.rs485.RS485Settings
-    inverter = DeyeInverter(ser)
-    DeyeInverter.send(inverter, 316)
+def batteryPower():
+        canID = 0x356
+        canSetWord(0, daly.DalyBms.voltage)
+        canSetWord(0, daly.DalyBms.current)
+        canSetWord(0, daly.DalyBms.temp)
+        msg = can.Message(arbitration_id=canID, data=data, is_extended_id=False)
+        print(msg)
 
+def messages():
+        #warnings()
+        #chargesettngs()
+        batteryState()
 
+def sender():
+
+    while True:
+        bus = can.interfaces.Bus(channel='/dev/ttyAMA0', baudrate=9600, timeout=5)
+        try:
+            bus.send(messages())
+            print("Message sent on {}".format(bus.channel_info))
+            time.sleep(1)
+        except can.CanError:
+            print("Message NOT sent")
+
+sender()
 
 #   Adress  Discription     R/W     Ranges  unit    remarks
 #   200     Control mode    R/W                     0x0001 Lithium Battery
