@@ -1,64 +1,42 @@
-import time
-import can
-import daly
-import numpy as np
-import serial
 
-data = []
-i = 0
-w = 0
+class DeyeInverter:
+    def __init__():
+        pass
 
-def canSetWord(i,w):
-    w=np.int16(w)
-    data.insert(i,0)
-    data.insert(i+1, w)
+    def __init__(self, canConnect):
+        os.system('sudo ip link set can0 type can bitrate 9600')
+        os.system('sudo ifconfig can0 up')
+        self.can0 = canConnect
 
-def warnings():
-        canID = 0x359
-        data = [0,0,0,0,0,0x50,0x4E]
-        msg = can.Message(arbitration_id=canID, data=data, is_extended_id=False)
-        print(msg)
+    def messageData(self):
+        self.arbitration_id = 0x351
+        self.data = [0x03, ]
 
-def chargesettngs():
-        canID = 0x351
-        canSetWord(0, 55) # Charge Voltage
-        canSetWord(0, 60) # Target Charge Current from derate check
-        canSetWord(0, 80)
-        msg = can.Message(arbitration_id=canID, data=data, is_extended_id=False)
-        print(msg)
+    def send(self):
+        msg = can.Message(self.messageData())
+        can0.send(msg)
 
-def batteryState():
-        canID = 0x355
-        canSetWord(0, 55) # SOC
-        canSetWord(2, 95) # SOH
-        msg = can.Message(arbitration_id=canID, data=data, is_extended_id=False)
-        print (msg)
+    def receive(self):
+        msg = can0.recv(15)
 
-def batteryPower():
-        canID = 0x356
-        canSetWord(0, daly.DalyBms.voltage)
-        canSetWord(0, daly.DalyBms.current)
-        canSetWord(0, daly.DalyBms.temp)
-        msg = can.Message(arbitration_id=canID, data=data, is_extended_id=False)
-        print(msg)
 
-def messages():
-        #warnings()
-        #chargesettngs()
-        batteryState()
+if __name__ == '__main__':
+    import can
+    import time
+    import os
 
-def sender():
+    can0 = can.interface.Bus(channel = 'can0', bustype = 'socketcan_ctypes')
+    inv = DeyeInverter(can0)
 
     while True:
-        bus = can.interfaces.Bus(channel='/dev/ttyAMA0', baudrate=9600, timeout=5)
-        try:
-            bus.send(messages())
-            print("Message sent on {}".format(bus.channel_info))
-            time.sleep(1)
-        except can.CanError:
-            print("Message NOT sent")
+        inv.send()
+        inv.receive()
 
-sender()
+
+
+
+
+
 
 #   Adress  Discription     R/W     Ranges  unit    remarks
 #   200     Control mode    R/W                     0x0001 Lithium Battery
