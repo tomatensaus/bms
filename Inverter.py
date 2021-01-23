@@ -10,14 +10,16 @@ class DeyeInverter:
 
     def messageData(self):
         self.arbitration_id = 0x351
-        self.data = [0x03, ]
+        self.data = [0x03, 0x00, 0x6B, 0x00, 0x03]
 
     def send(self):
         msg = can.Message(self.messageData())
         can0.send(msg)
+        print(can.Message)
 
     def receive(self):
         msg = can0.recv(15)
+        print(msg)
 
 
 if __name__ == '__main__':
@@ -30,7 +32,9 @@ if __name__ == '__main__':
 
     while True:
         inv.send()
+        time.sleep(10)
         inv.receive()
+
 
 
 
