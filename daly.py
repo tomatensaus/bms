@@ -146,12 +146,11 @@ class DalyBms:
 		for i in range(len(self.cellVoltage)):
 			print("Cell % 2d Voltage % 2f" %(i+1, self.cellVoltage[i]/1000.0))
 
-
 	def sendCheckSum(self, command):
 		checksum = 0xa5 + 0x40 + command + 0x08
-		# print("WChecksum: ",hex(checksum)) #checksum mod 256 to get lower 2 bytes
+		# print("WChecksum: ", hex(checksum))  # checksum mod 256 to get lower 2 bytes
 		# print(hex(256))
-		# print (hex(checksum  % 0x100))
+		# print(hex(checksum % 0x100))
 		return checksum % 0x100
 
 	def send(self, command):
@@ -221,6 +220,7 @@ class DalyBms:
 				trg_charge_V = 55.0
 				trg_charge_I = 100 - self.soc
 
+
 if __name__ == '__main__':
 	import serial.rs485
 	import time
@@ -228,6 +228,7 @@ if __name__ == '__main__':
 	ser = serial.rs485.RS485(port='/dev/ttyUSB0', baudrate=9600, timeout=5)
 	ser.rs485_mode = serial.rs485.RS485Settings()
 	bms = DalyBms(ser)
+
 
 	print("DALY BMS DATA COMMUNICATION PROGRAM")
 	print("Press y for raw data only")
@@ -240,5 +241,6 @@ if __name__ == '__main__':
 		else:
 			bms.infoprint()
 
-		time.sleep(300)
+
+		# time.sleep(300)
 
