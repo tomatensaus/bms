@@ -165,6 +165,7 @@ class DalyBms:
 			return ser_bytes
 		else:
 			raise Exception('Read Checksum failed')
+			print(str(Exception))
 
 	def readForCellVoltages(self, command):
 		ser_bytes = bytearray(self.ser.read(13))
@@ -172,12 +173,18 @@ class DalyBms:
 		if self.checkReadCheckSum(command, ser_bytes):
 			return ser_bytes
 		else:
+			print(ser_bytes)
 			raise Exception('Read Checksum failed')
+			print(str(Exception))
 
 	def checkReadCheckSum(self, command, ser_bytes):
 		checksum = sum(ser_bytes[0:-1])
 		#print("RCheckSum: ",hex(checksum))
-		return ((ser_bytes[0] == 0xa5) & (ser_bytes[1] == 0x01) & (ser_bytes[2] == command) & (ser_bytes[3] == 0x08) & (ser_bytes[12] == (checksum  % 0x100 )))
+		try:
+			return ((ser_bytes[0] == 0xa5) & (ser_bytes[1] == 0x01) & (ser_bytes[2] == command) & (ser_bytes[3] == 0x08) & (ser_bytes[12] == (checksum  % 0x100 )))
+		except IndexError as e:
+			print(ser_bytes)
+			print(str(e))
 
 	def twoBytes(self, ser_bytes,offset):
 	        # print("Packing 2 bytes as int")

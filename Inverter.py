@@ -4,6 +4,7 @@ import can
 import serial.rs485
 import time
 import os
+import datetime
 
 class DeyeInverter:
     def __init__():
@@ -13,23 +14,46 @@ class DeyeInverter:
         self.can0 = canConnect
 
     def hilobytes(self, integer):
-        return divmod(integer, 0x100)
+        return (integer).to_bytes(2, byteorder='big',signed=True)
+
+    def chargelimiter(self):
+        self.fast_charge = 600
+        self.med_charge = 250
+        self.throttle_charge = int((100 - bms.soc)*10)*2
+        self.slow_charge = 100
+        self.charge_idle = 10
+        self.charge_current_limit = 30
+
+        if bms.bat_maxv < 3.5 and bms.bat_minv > 3.00:
+            if bms.soc < 90:
+                self.charge_current_limit = self.fast_charge
+            elif bms.soc > 90 and bms.soc < 95:
+                self.charge_current_limit = self.med_charge
+            elif bms.soc > 95 and bms.soc <98:
+                self.charge_current_limit = self.throttle_charge
+            elif bms.soc > 98:
+                self.charge_current_limit = self.charge_idle
+        elif bms.bat_minv < 2.90:
+            self.charge_current_limit = self.slow_charge
+        return self.charge_current_limit
 
     def msg359(self):  # msg359 8 bytes: Protection, Protection, Alarm, Alarm, Module numbers, P & N at bits 5 and 6
         self.arbitration_id = 0x359
         self.data = [0x00, 0x00, 0x00, 0x00, 0x01, 0x50, 0x4e]
         self.extended_id = False
         self.msg = can.Message(arbitration_id=self.arbitration_id, data=self.data, extended_id=self.extended_id)
-        print(self.msg)
+        # print(self.msg)
         can0.send(self.msg)
         #Alarms and warnings to be included
 
     def msg351(self):  # msg351 6 bytes: Battery charge voltage(2), Charge current limit(2), Discharge current limit (2)
+        self.chargelimiter()
         self.arbitration_id = 0x351
-        self.data = [0x2b, 0x02, 0x58, 0x02, 0x8e, 0x03]
+        self.charge_current_limit_high, self.charge_current_limit_low = self.hilobytes(self.charge_current_limit)
+        self.data = [0x35, 0x02, self.charge_current_limit_low, self.charge_current_limit_high, 0x20, 0x03]
         self.extended_id = False
         self.msg = can.Message(arbitration_id=self.arbitration_id, data=self.data, extended_id=self.extended_id)
-        print(self.msg)
+        # print(self.msg)
         can0.send(self.msg)
         #Hardcoded values for now, will include a reducing value on charge current as SOH increases
 
@@ -41,7 +65,7 @@ class DeyeInverter:
                      (self.batsoh_low), (self.batsoh_high)]
         self.extended_id = False
         self.msg = can.Message(arbitration_id=self.arbitration_id, data=self.data, extended_id=self.extended_id)
-        print(self.msg)
+        # print(self.msg)
         can0.send(self.msg)
 
     def msg356(self):  # msg356 6 bytes: Battery voltage (2), Battery current (2), Battery temp (2)
@@ -53,8 +77,9 @@ class DeyeInverter:
                      self.battery_current_low, self.battery_current_high,
                      self.battery_temp_low, self.battery_temp_high]
         self.extended_id = False
+        # print(self.data)
         self.msg = can.Message(arbitration_id=self.arbitration_id, data=self.data, extended_id=self.extended_id)
-        print(self.msg)
+        # print(self.msg)
         can0.send(self.msg)
 
     def msg35C(self):  # msg35C 1 byte: Discharge / Charge
@@ -62,7 +87,7 @@ class DeyeInverter:
         self.data = [0x60, 0x00]
         self.extended_id = False
         self.msg = can.Message(arbitration_id=self.arbitration_id, data=self.data, extended_id=self.extended_id)
-        print(self.msg)
+        # print(self.msg)
         can0.send(self.msg)
         # Hardcoded charge and discharge to always be enabled, can be changed in future to receive command from BMS
 
@@ -71,7 +96,7 @@ class DeyeInverter:
         self.data = [0x50, 0x59, 0x4C, 0x4f, 0x4e]
         self.extended_id = False
         self.msg = can.Message(arbitration_id=self.arbitration_id, data=self.data, extended_id=self.extended_id)
-        print(self.msg)
+        # print(self.msg)
         can0.send(self.msg)
         # For now, this reads PYLON
 
@@ -87,35 +112,32 @@ if __name__ == '__main__':
         can0 = can.interface.Bus(channel = 'can0', bustype='socketcan_ctypes')
         can0.flush_tx_buffer()
         inv = DeyeInverter(can0)
+        date = datetime.datetime.now()
 
-        #
-        #     inv.send()
-        #     time.sleep(10)
-        #     inv.receive()
+        try:
+            can0.flush_tx_buffer()
+            bms.update()
+            inv.msg351()
+            time.sleep(0.1)
+            inv.msg355()
+            time.sleep(0.1)
+            inv.msg356()
+            time.sleep(0.1)
+            inv.msg359()
+            time.sleep(0.1)
+            inv.msg35E()
 
+            print(date)
+            print("Cell Differential: ", bms.bat_maxv - bms.bat_minv )
+            print("BMS Voltage:", bms.voltage)
+            print("BMS SOC:", bms.soc)
+            print("BMS Current:", bms.current)
+            print("BMS Temp:", bms.bat_temp)
+            time.sleep(5)
 
-        bms.update()
-        inv.msg351()
-        time.sleep(0.1)
-        inv.msg355()
-        time.sleep(0.1)
-        inv.msg356()
-        time.sleep(0.1)
-        inv.msg359()
-        time.sleep(0.1)
-        # inv.msg35C()
-        # time.sleep(0.1)
-        inv.msg35E()
-
-        print("BMS Voltage:", bms.voltage)
-        print("BMS SOC:", bms.soc)
-        print("BMS Current:", bms.current)
-        print("BMS Temp:", bms.bat_temp)
-        # print("Inv Voltage:", inv.battery_voltage)
-        # print("Inv SOC:", inv.batsoc)
-        # print("Inv Current:", inv.battery_current)
-        # print("Inv Temp:", inv.battery_temp)
-
+        except ValueError as e:
+            print("some error occured")
+            print("Error: ", str(e))
 
 
 
